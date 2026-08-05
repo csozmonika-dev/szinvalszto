@@ -1,1 +1,1 @@
-# szinvalszto
+Játékos színválasztó
