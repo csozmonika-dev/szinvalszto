@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Színsorozat - memóriajáték</title>
+
+<!-- ===================== CSS ===================== -->
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: "Comic Sans MS", "Trebuchet MS", Arial, sans-serif;
+    background-color: #fdf6e3;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+  }
+
+  /* Fő keret, amely a mintaképnek megfelelő zöldes dobozt jeleníti meg */
+  .jatek-doboz {
+    background-color: #dfeadc;
+    border: 2px solid #4a7fb5;
+    border-radius: 25px;
+    padding: 40px 30px;
+    max-width: 700px;
+    width: 100%;
+    text-align: center;
+  }
+
+  h1 {
+    color: #2e5233;
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+
+  .cimke {
+    font-size: 1.1em;
+    color: #333;
+    margin: 5px 0 15px 0;
+    font-weight: bold;
+  }
+
+  /* Egy-egy sor (előnézet, kitöltendő, választható színek) */
+  .sor {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    min-height: 90px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* Nagy körök (előnézet és kitöltendő sor) */
+  .kor {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid #333;
+    background-color: #ffffff;
+    transition: background-color 0.3s ease, transform 0.15s ease;
+  }
+
+  /* Kitöltendő kör - kattintható, kiemeli magát ha kiválasztott */
+  .kitoltendo-kor {
+    cursor: pointer;
+  }
+
+  .kitoltendo-kor.kivalasztott {
+    border-color: #ff6600;
+    border-width: 5px;
+    transform: scale(1.08);
+    box-shadow: 0 0 10px rgba(255, 102, 0, 0.6);
+  }
+
+  /* Kisebb körök a választható színekhez */
+  .szin-gomb {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    border: 3px solid #333;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .szin-gomb:hover {
+    transform: scale(1.15);
+  }
+
+  .rejtett {
+    visibility: hidden;
+  }
+
+  /* Ellenőrzés gomb */
+  #ellenorzes-gomb {
+    margin-top: 25px;
+    padding: 12px 35px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: white;
+    background-color: #7bb661;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+  }
+
+  #ellenorzes-gomb:disabled {
+    background-color: #b5c9ab;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  #ellenorzes-gomb:not(:disabled):hover {
+    background-color: #5f9e46;
+  }
+
+  /* Újraindítás gomb */
+  #ujra-gomb {
+    margin-top: 15px;
+    padding: 10px 30px;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: white;
+    background-color: #4a7fb5;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    display: none;
+  }
+
+  #ujra-gomb:hover {
+    background-color: #3a6591;
+  }
+
+  /* Visszaszámláló szöveg */
+  #visszaszamlalo {
+    font-size: 1em;
+    color: #555;
+    margin-bottom: 10px;
+    min-height: 1.3em;
+  }
+
+  /* Felugró üzenet (modális ablak) háttere */
+  .modal-hatter {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+
+  .modal-hatter.lathato {
+    display: flex;
+  }
+
+  .modal-doboz {
+    background-color: white;
+    border-radius: 20px;
+    padding: 30px 35px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal-uzenet {
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+
+  .modal-doboz button {
+    padding: 10px 25px;
+    font-size: 1.05em;
+    background-color: #4a7fb5;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .modal-doboz button:hover {
+    background-color: #3a6591;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ===================== HTML ===================== -->
+<div class="jatek-doboz">
+  <h1>Színsorozat</h1>
+
+  <!-- 1. fázis: véletlen színsor (előnézet) -->
+  <p class="cimke">1. fázis: jegyezd meg a színsort!</p>
+  <div class="sor" id="elonezet-sor"></div>
+  <div id="visszaszamlalo"></div>
+
+  <!-- 2. fázis: kitöltendő színsor -->
+  <p class="cimke">2. fázis: rakd ki ugyanazt a sorrendet!</p>
+  <div class="sor" id="kitoltendo-sor"></div>
+
+  <!-- Választható színek -->
+  <p class="cimke">Választható színek</p>
+  <div class="sor" id="paletta-sor"></div>
+
+  <button id="ellenorzes-gomb" disabled>ELLENŐRZÉS</button>
+  <br>
+  <button id="ujra-gomb">Új játék</button>
+</div>
+
+<!-- Felugró üzenet -->
+<div class="modal-hatter" id="modal-hatter">
+  <div class="modal-doboz">
+    <div class="modal-uzenet" id="modal-uzenet"></div>
+    <button id="modal-bezar-gomb">Rendben</button>
+  </div>
+</div>
+
+<!-- ===================== JAVASCRIPT ===================== -->
+<script>
+  // Az összes elérhető alapszín, névvel és hex kóddal
+  const OSSZES_SZIN = [
+    { nev: "sárga",   hex: "#FFD54A" },
+    { nev: "zöld",    hex: "#2E9E44" },
+    { nev: "kék",     hex: "#2E75B6" },
+    { nev: "narancs", hex: "#D2691E" },
+    { nev: "lila",    hex: "#7A4FBF" },
+    { nev: "fekete",  hex: "#1a1a1a" },
+    { nev: "fehér",   hex: "#FFFFFF" },
+    { nev: "piros",   hex: "#C00000" }
+  ];
+
+  const ELONEZET_IDO_MP = 8; // az előnézet ennyi másodpercig látszik
+
+  // Játék állapota
+  let eredetiSorrend = [];   // a megjegyzendő 4 szín (hex kódok tömbje)
+  let jatekosValasz = [null, null, null, null]; // a játékos aktuális kitöltése
+  let kivalasztottKorIndex = null; // melyik üres kört választotta ki a játékos
+
+  // DOM elemek
+  const elonezetSor = document.getElementById("elonezet-sor");
+  const kitoltendoSor = document.getElementById("kitoltendo-sor");
+  const palettaSor = document.getElementById("paletta-sor");
+  const ellenorzesGomb = document.getElementById("ellenorzes-gomb");
+  const ujraGomb = document.getElementById("ujra-gomb");
+  const visszaszamlalo = document.getElementById("visszaszamlalo");
+  const modalHatter = document.getElementById("modal-hatter");
+  const modalUzenet = document.getElementById("modal-uzenet");
+  const modalBezarGomb = document.getElementById("modal-bezar-gomb");
+
+  // Tömb elemeinek véletlenszerű összekeverése (Fisher-Yates)
+  function osszekever(tomb) {
+    const masolat = [...tomb];
+    for (let i = masolat.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [masolat[i], masolat[j]] = [masolat[j], masolat[i]];
+    }
+    return masolat;
+  }
+
+  // Új játék indítása
+  function ujJatekInditasa() {
+    // véletlenszerű, egymástól különböző 4 szín kiválasztása
+    eredetiSorrend = osszekever(OSSZES_SZIN).slice(0, 4);
+    jatekosValasz = [null, null, null, null];
+    kivalasztottKorIndex = null;
+
+    ellenorzesGomb.disabled = true;
+    ujraGomb.style.display = "none";
+    modalHatter.classList.remove("lathato");
+
+    // Előnézeti sor megjelenítése a valódi színekkel
+    elonezetSor.innerHTML = "";
+    eredetiSorrend.forEach(szin => {
+      const kor = document.createElement("div");
+      kor.className = "kor";
+      kor.style.backgroundColor = szin.hex;
+      elonezetSor.appendChild(kor);
+    });
+
+    // Kitöltendő sor - négy üres kör létrehozása
+    kitoltendoSor.innerHTML = "";
+    for (let i = 0; i < 4; i++) {
+      const kor = document.createElement("div");
+      kor.className = "kor kitoltendo-kor";
+      kor.dataset.index = i;
+      kor.addEventListener("click", () => korKivalasztasa(i));
+      kitoltendoSor.appendChild(kor);
+    }
+
+    // Paletta felépítése: az eredeti 4 szín + még 4 véletlenszerű szín
+    const eredetiHexek = eredetiSorrend.map(s => s.hex);
+    const tobbiSzin = OSSZES_SZIN.filter(s => !eredetiHexek.includes(s.hex));
+    const negyTovabbi = osszekever(tobbiSzin).slice(0, 4);
+    const palettaSzinek = osszekever([...eredetiSorrend, ...negyTovabbi]);
+
+    palettaSor.innerHTML = "";
+    palettaSzinek.forEach(szin => {
+      const gomb = document.createElement("div");
+      gomb.className = "szin-gomb";
+      gomb.style.backgroundColor = szin.hex;
+      gomb.title = szin.nev;
+      gomb.addEventListener("click", () => szinValasztas(szin.hex));
+      palettaSor.appendChild(gomb);
+    });
+
+    // Visszaszámlálás indítása, majd az előnézet elrejtése
+    let hatralevoMp = ELONEZET_IDO_MP;
+    visszaszamlalo.textContent = "Az előnézet eltűnik " + hatralevoMp + " másodperc múlva...";
+
+    const idozito = setInterval(() => {
+      hatralevoMp--;
+      if (hatralevoMp > 0) {
+        visszaszamlalo.textContent = "Az előnézet eltűnik " + hatralevoMp + " másodperc múlva...";
+      } else {
+        clearInterval(idozito);
+        elonezetElrejtese();
+      }
+    }, 1000);
+  }
+
+  // Az előnézeti színsor elrejtése (üres körökre cserélése)
+  function elonezetElrejtese() {
+    visszaszamlalo.textContent = "";
+    const korok = elonezetSor.querySelectorAll(".kor");
+    korok.forEach(kor => {
+      kor.style.backgroundColor = "#ffffff";
+    });
+  }
+
+  // Egy kitöltendő kör kiválasztása kattintással
+  function korKivalasztasa(index) {
+    kivalasztottKorIndex = index;
+    const korok = kitoltendoSor.querySelectorAll(".kitoltendo-kor");
+    korok.forEach((kor, i) => {
+      kor.classList.toggle("kivalasztott", i === index);
+    });
+  }
+
+  // Szín kiválasztása a palettáról - a kiválasztott kör felveszi a színt
+  function szinValasztas(hex) {
+    if (kivalasztottKorIndex === null) {
+      return; // előbb ki kell választani egy kört
+    }
+    jatekosValasz[kivalasztottKorIndex] = hex;
+    const korok = kitoltendoSor.querySelectorAll(".kitoltendo-kor");
+    korok[kivalasztottKorIndex].style.backgroundColor = hex;
+
+    ellenorzesEngedelyezesFrissitese();
+
+    // A fókusz automatikus átugrasztása a következő körre
+    kovetkezoKorreUgras();
+  }
+
+  // A fókuszt a sorban következő körre viszi (ha nincs következő, a kiválasztás megszűnik)
+  function kovetkezoKorreUgras() {
+    const kovetkezoIndex = kivalasztottKorIndex + 1;
+
+    if (kovetkezoIndex < jatekosValasz.length) {
+      korKivalasztasa(kovetkezoIndex);
+    } else {
+      // Elértük az utolsó kört - a kiválasztás megszűnik
+      kivalasztottKorIndex = null;
+      const korok = kitoltendoSor.querySelectorAll(".kitoltendo-kor");
+      korok.forEach(kor => kor.classList.remove("kivalasztott"));
+    }
+  }
+
+  // Az ELLENŐRZÉS gomb csak akkor aktív, ha mind a négy kör ki van töltve
+  function ellenorzesEngedelyezesFrissitese() {
+    const mindKitoltve = jatekosValasz.every(szin => szin !== null);
+    ellenorzesGomb.disabled = !mindKitoltve;
+  }
+
+  // Az eredmény ellenőrzése
+  function eredmenyEllenorzese() {
+    const eredetiHexek = eredetiSorrend.map(s => s.hex);
+    const helyes = eredetiHexek.every((hex, i) => hex === jatekosValasz[i]);
+
+    if (helyes) {
+      modalUzenet.textContent = "Gratulálok! Hibátlanul megoldottad a feladatot! 🎉";
+    } else {
+      modalUzenet.textContent = "Most nem sikerült. Próbáld meg újra! 😊";
+      // hibás megoldás esetén a helyes színsor újra megjelenik
+      const korok = elonezetSor.querySelectorAll(".kor");
+      korok.forEach((kor, i) => {
+        kor.style.backgroundColor = eredetiSorrend[i].hex;
+      });
+    }
+
+    modalHatter.classList.add("lathato");
+    ujraGomb.style.display = "inline-block";
+  }
+
+  // Eseménykezelők
+  ellenorzesGomb.addEventListener("click", eredmenyEllenorzese);
+  ujraGomb.addEventListener("click", ujJatekInditasa);
+  modalBezarGomb.addEventListener("click", () => {
+    modalHatter.classList.remove("lathato");
+  });
+
+  // A játék indítása az oldal betöltésekor
+  // DOMContentLoaded-re várunk, hogy biztosan minden elem (körök, gombok) készen álljon,
+  // mielőtt az 1. fázis véletlen színeit beállítjuk - így az első játéknál is azonnal
+  // megjelennek a színek, nem csak egy "Új játék" után.
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ujJatekInditasa);
+  } else {
+    ujJatekInditasa();
+  }
+</script>
+
+</body>
+</html>
